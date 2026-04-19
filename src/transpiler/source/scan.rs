@@ -91,7 +91,9 @@ pub(crate) fn scan_expression_end(source: &str, start: usize) -> Result<usize, T
                 depth_brace = depth_brace.saturating_sub(1);
                 index += 1;
             }
-            ';' | ',' if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 => return Ok(index),
+            ';' | ',' if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 => {
+                return Ok(index);
+            }
             _ => index += 1,
         }
     }

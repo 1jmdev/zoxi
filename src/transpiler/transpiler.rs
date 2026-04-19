@@ -1,22 +1,21 @@
 use std::{
-    path::{Path, PathBuf},
-    process::ExitCode,
     collections::BTreeSet,
-    fs,
+    env, fs,
+    path::{Path, PathBuf},
+    process,
+    process::ExitCode,
     time,
-    env,
-    process
 };
 
 use anyhow::{Context, Result};
 use walkdir::WalkDir;
 
 use crate::cargo::{CargoRunner, CargoSubcommand};
-use crate::project::{
-    discover_sources, ensure_project_manifest, load_cache_state, write_cache_state,
-    write_generated_manifest, CacheEntry, CacheState, ProjectPaths, SourceFingerprint,
-};
 use crate::project::file_sync::write_if_changed;
+use crate::project::{
+    CacheEntry, CacheState, ProjectPaths, SourceFingerprint, discover_sources,
+    ensure_project_manifest, load_cache_state, write_cache_state, write_generated_manifest,
+};
 use crate::transpiler::error::TranspileError;
 use crate::transpiler::source::transpile_source;
 
@@ -49,7 +48,9 @@ impl Transpiler {
     fn transpile_project(&self) -> Result<()> {
         let src_dir = self.paths.src_dir();
         if !src_dir.exists() {
-            return Err(TranspileError::MissingSourceDirectory(src_dir.display().to_string()).into());
+            return Err(
+                TranspileError::MissingSourceDirectory(src_dir.display().to_string()).into(),
+            );
         }
 
         let files = discover_sources(&src_dir)?;
@@ -66,17 +67,19 @@ impl Transpiler {
         let mut next_state = CacheState::new();
 
         for file in files {
-            let relative = file
-                .strip_prefix(&src_dir)
-                .with_context(|| format!("failed to compute relative path for {}", file.display()))?;
+            let relative = file.strip_prefix(&src_dir).with_context(|| {
+                format!("failed to compute relative path for {}", file.display())
+            })?;
             let output = generated_src_dir.join(relative).with_extension("rs");
-            let generated_relative = output
-                .strip_prefix(&generated_dir)
-                .with_context(|| format!("failed to compute generated path for {}", output.display()))?;
+            let generated_relative = output.strip_prefix(&generated_dir).with_context(|| {
+                format!("failed to compute generated path for {}", output.display())
+            })?;
             let fingerprint = SourceFingerprint::from_path(&file)?;
 
             if let Some(entry) = previous_state.get(relative) {
-                if entry.matches(&fingerprint) && generated_dir.join(entry.generated_path()).exists() {
+                if entry.matches(&fingerprint)
+                    && generated_dir.join(entry.generated_path()).exists()
+                {
                     next_state.insert(relative.to_path_buf(), entry.clone());
                     continue;
                 }
@@ -111,13 +114,19 @@ impl Transpiler {
             .map(|(_, entry)| generated_dir.join(entry.generated_path()))
             .collect::<BTreeSet<_>>();
 
-        for entry in WalkDir::new(generated_src_dir).into_iter().filter_map(Result::ok) {
+        for entry in WalkDir::new(generated_src_dir)
+            .into_iter()
+            .filter_map(Result::ok)
+        {
             if !entry.file_type().is_file() {
                 continue;
             }
 
             let generated_path = entry.path();
-            if generated_path.extension().is_none_or(|extension| extension != "rs") {
+            if generated_path
+                .extension()
+                .is_none_or(|extension| extension != "rs")
+            {
                 continue;
             }
 

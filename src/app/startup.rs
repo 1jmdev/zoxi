@@ -6,7 +6,7 @@ use crate::cargo::{
     AddOptions, BuildOptions, CargoOptions, CargoSubcommand, CleanOptions, EnvVar, RemoveOptions,
     RunOptions, TestOptions,
 };
-use crate::cli::{Cli, Command, CargoCommandArgs};
+use crate::cli::{CargoCommandArgs, Cli, Command};
 use crate::project::ProjectPaths;
 use crate::transpiler::Transpiler;
 

@@ -1,10 +1,10 @@
+use anyhow::{Result, bail};
 use std::{
     collections::BTreeMap,
+    fs,
     path::{Path, PathBuf},
     time::UNIX_EPOCH,
-    fs
 };
-use anyhow::{Result, bail};
 
 use crate::project::file_sync::write_if_changed;
 
@@ -20,7 +20,10 @@ pub struct SourceFingerprint {
 impl SourceFingerprint {
     pub fn from_path(path: &Path) -> Result<Self> {
         let metadata = fs::metadata(path)?;
-        let modified = metadata.modified()?.duration_since(UNIX_EPOCH).unwrap_or_default();
+        let modified = metadata
+            .modified()?
+            .duration_since(UNIX_EPOCH)
+            .unwrap_or_default();
         Ok(Self {
             size: metadata.len(),
             modified_seconds: modified.as_secs(),

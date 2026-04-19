@@ -21,10 +21,9 @@ impl CargoCommand {
     }
 
     pub fn apply_envs(&mut self, envs: &[EnvVar]) {
-        envs.iter()
-            .for_each(|env_var| {
-                self.command.env(env_var.key(), env_var.value());
-            });
+        envs.iter().for_each(|env_var| {
+            self.command.env(env_var.key(), env_var.value());
+        });
     }
 
     pub fn args<I, S>(mut self, args: I) -> Self

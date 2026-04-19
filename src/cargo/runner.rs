@@ -84,7 +84,10 @@ impl<'a> CargoRunner<'a> {
     }
 
     pub fn custom(&self, name: &str, cargo: &CargoOptions) -> anyhow::Result<ExitCode> {
-        self.run_command(name, CargoCommand::new(self.workdir, name).apply_options(cargo))
+        self.run_command(
+            name,
+            CargoCommand::new(self.workdir, name).apply_options(cargo),
+        )
     }
 
     fn run_command(&self, name: &str, command: CargoCommand) -> anyhow::Result<ExitCode> {

@@ -1,11 +1,7 @@
-use std::{
-    fmt::Write,
-    path::Path,
-    fs
-};
 use anyhow::Result;
+use std::{fmt::Write, fs, path::Path};
 
-use crate::project::file_sync::{copy_if_changed,write_if_changed};
+use crate::project::file_sync::{copy_if_changed, write_if_changed};
 
 pub fn write_generated_manifest(project_root: &Path, generated_dir: &Path) -> Result<()> {
     let source_manifest = project_root.join("zoxi.toml");

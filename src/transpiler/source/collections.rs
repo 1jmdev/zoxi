@@ -74,20 +74,31 @@ pub(crate) fn rewrite_hash_map_index_assignments(source: &str) -> Result<String,
 }
 
 pub(crate) fn rewrite_string_bindings(source: &str) -> Result<String, TranspileError> {
-    let binding = Regex::new(r"(?m)(let\s+(?:mut\s+)?[A-Za-z_][A-Za-z0-9_]*\s*:\s*String\s*=\s*)([^;]+);")
-        .map_err(|_| TranspileError::UnclosedDelimiter('r'))?;
+    let binding =
+        Regex::new(r"(?m)(let\s+(?:mut\s+)?[A-Za-z_][A-Za-z0-9_]*\s*:\s*String\s*=\s*)([^;]+);")
+            .map_err(|_| TranspileError::UnclosedDelimiter('r'))?;
 
     Ok(binding
         .replace_all(source, |captures: &regex::Captures<'_>| {
-            let rhs = captures.get(2).map(|m| m.as_str().trim()).unwrap_or_default();
+            let rhs = captures
+                .get(2)
+                .map(|m| m.as_str().trim())
+                .unwrap_or_default();
             if rhs.starts_with("String::from(")
                 || rhs.starts_with("format!(")
                 || rhs.ends_with(".to_string()")
                 || rhs == "String::new()"
             {
-                captures.get(0).map(|m| m.as_str()).unwrap_or_default().to_string()
+                captures
+                    .get(0)
+                    .map(|m| m.as_str())
+                    .unwrap_or_default()
+                    .to_string()
             } else {
-                format!("{}String::from({rhs});", captures.get(1).map(|m| m.as_str()).unwrap_or_default())
+                format!(
+                    "{}String::from({rhs});",
+                    captures.get(1).map(|m| m.as_str()).unwrap_or_default()
+                )
             }
         })
         .into_owned())
@@ -99,7 +110,9 @@ pub(crate) fn rewrite_static_strings(source: &str) -> Result<String, TranspileEr
     )
     .map_err(|_| TranspileError::UnclosedDelimiter('r'))?;
 
-    Ok(static_string.replace_all(source, "$1&str$2$3;").into_owned())
+    Ok(static_string
+        .replace_all(source, "$1&str$2$3;")
+        .into_owned())
 }
 
 pub(crate) fn rewrite_map_literal(inner: &str) -> Result<String, TranspileError> {
@@ -114,21 +127,35 @@ pub(crate) fn rewrite_map_literal(inner: &str) -> Result<String, TranspileError>
             let parts = split_top_level(&entry, ':')?;
             let key = parts.first().map(|part| part.trim()).unwrap_or_default();
             let value = parts.get(1).map(|part| part.trim()).unwrap_or_default();
-            Ok(format!("({}, {})", rewrite_literals(key)?, rewrite_literals(value)?))
+            Ok(format!(
+                "({}, {})",
+                rewrite_literals(key)?,
+                rewrite_literals(value)?
+            ))
         })
         .collect::<Result<Vec<_>, TranspileError>>()?;
 
-    Ok(format!("std::collections::HashMap::from([{}])", entries.join(", ")))
+    Ok(format!(
+        "std::collections::HashMap::from([{}])",
+        entries.join(", ")
+    ))
 }
 
 pub(crate) fn should_rewrite_vec(source: &str, index: usize) -> bool {
-    !top_level_contains(&source[index + 1..find_matching(source, index, '[', ']').unwrap_or(index + 1) - 1], ';')
-        && matches!(previous_significant_char(source, index), None | Some('=') | Some('(') | Some(',') | Some('{') | Some('[') | Some(';'))
+    !top_level_contains(
+        &source[index + 1..find_matching(source, index, '[', ']').unwrap_or(index + 1) - 1],
+        ';',
+    ) && matches!(
+        previous_significant_char(source, index),
+        None | Some('=') | Some('(') | Some(',') | Some('{') | Some('[') | Some(';')
+    )
 }
 
 pub(crate) fn should_rewrite_map(source: &str, index: usize, inner: &str) -> bool {
-    matches!(previous_significant_char(source, index), None | Some('=') | Some('(') | Some(',') | Some('[') | Some('{') | Some(';'))
-        && (inner.trim().is_empty() || top_level_contains(inner, ':'))
+    matches!(
+        previous_significant_char(source, index),
+        None | Some('=') | Some('(') | Some(',') | Some('[') | Some('{') | Some(';')
+    ) && (inner.trim().is_empty() || top_level_contains(inner, ':'))
 }
 
 pub(crate) fn innermost_container(source: &str, end: usize) -> Option<ContainerContext> {
@@ -217,7 +244,9 @@ fn top_level_contains(source: &str, needle: char) -> bool {
                 depth_brace = depth_brace.saturating_sub(1);
                 index += 1;
             }
-            _ if ch == needle && depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 => return true,
+            _ if ch == needle && depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 => {
+                return true;
+            }
             _ => index += 1,
         }
     }

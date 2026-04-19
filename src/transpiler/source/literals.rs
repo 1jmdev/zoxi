@@ -76,7 +76,11 @@ pub(crate) fn rewrite_literals(source: &str) -> Result<String, TranspileError> {
     Ok(result)
 }
 
-fn rewrite_string_literal(source: &str, index: usize, literal: &str) -> Result<String, TranspileError> {
+fn rewrite_string_literal(
+    source: &str,
+    index: usize,
+    literal: &str,
+) -> Result<String, TranspileError> {
     if should_keep_raw_string(source, index) {
         return Ok(literal.to_string());
     }
@@ -92,14 +96,19 @@ fn rewrite_string_literal(source: &str, index: usize, literal: &str) -> Result<S
     let mut cursor = 0usize;
 
     for interpolation in interpolations {
-        format_string.push_str(&escape_format_segment(&content[cursor..interpolation.start]));
+        format_string.push_str(&escape_format_segment(
+            &content[cursor..interpolation.start],
+        ));
         format_string.push_str("{}");
         arguments.push(transpile_nested(interpolation.expr.trim())?);
         cursor = interpolation.end;
     }
 
     format_string.push_str(&escape_format_segment(&content[cursor..]));
-    Ok(format!("format!(\"{format_string}\", {})", arguments.join(", ")))
+    Ok(format!(
+        "format!(\"{format_string}\", {})",
+        arguments.join(", ")
+    ))
 }
 
 fn transpile_nested(source: &str) -> Result<String, TranspileError> {
@@ -164,7 +173,10 @@ fn escape_format_segment(segment: &str) -> String {
 
 fn should_keep_raw_string(source: &str, index: usize) -> bool {
     let prev = previous_significant_char(source, index);
-    let prev_prev = previous_significant_char(source, previous_significant_index(source, index).unwrap_or(index));
+    let prev_prev = previous_significant_char(
+        source,
+        previous_significant_index(source, index).unwrap_or(index),
+    );
 
     if prev == Some('=') || prev == Some(':') {
         return false;
@@ -172,15 +184,23 @@ fn should_keep_raw_string(source: &str, index: usize) -> bool {
 
     if prev == Some(',') {
         if let Some(container) = innermost_container(source, index) {
-            return matches!(container.open, '(') && matches!(container.before_open, Some('!') | Some(')') | Some(']'))
-                || matches!(container.open, '(') && container.before_open.is_some_and(is_identifier_continue)
+            return matches!(container.open, '(')
+                && matches!(container.before_open, Some('!') | Some(')') | Some(']'))
+                || matches!(container.open, '(')
+                    && container.before_open.is_some_and(is_identifier_continue)
                 || matches!(container.open, '[')
                     && matches!(container.before_open, Some(')') | Some(']') | Some('"'))
-                || matches!(container.open, '[') && container.before_open.is_some_and(is_identifier_continue);
+                || matches!(container.open, '[')
+                    && container.before_open.is_some_and(is_identifier_continue);
         }
     }
 
-    if prev == Some('[') && matches!(prev_prev, Some(')') | Some(']') | Some('"') | Some('s') | Some('r')) {
+    if prev == Some('[')
+        && matches!(
+            prev_prev,
+            Some(')') | Some(']') | Some('"') | Some('s') | Some('r')
+        )
+    {
         return true;
     }
 
@@ -189,7 +209,9 @@ fn should_keep_raw_string(source: &str, index: usize) -> bool {
             return true;
         }
 
-        if prev_prev.is_some_and(is_identifier_continue) || matches!(prev_prev, Some(')') | Some(']')) {
+        if prev_prev.is_some_and(is_identifier_continue)
+            || matches!(prev_prev, Some(')') | Some(']'))
+        {
             return true;
         }
     }

@@ -1,8 +1,8 @@
-use std::{
-    path::{PathBuf, Path},
-    env::current_dir
-};
 use anyhow::Result;
+use std::{
+    env::current_dir,
+    path::{Path, PathBuf},
+};
 
 pub struct ProjectPaths {
     root: PathBuf,
