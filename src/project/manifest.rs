@@ -1,14 +1,25 @@
-use std::fmt::Write;
-use std::path::Path;
+use std::{
+    fmt::Write,
+    path::Path,
+    fs
+};
+use anyhow::Result;
 
-pub fn write_generated_manifest(project_root: &Path, generated_dir: &Path) -> anyhow::Result<()> {
+use crate::project::file_sync::{copy_if_changed,write_if_changed};
+
+pub fn write_generated_manifest(project_root: &Path, generated_dir: &Path) -> Result<()> {
     let source_manifest = project_root.join("zoxi.toml");
     if source_manifest.exists() {
-        std::fs::create_dir_all(generated_dir)?;
-        std::fs::copy(source_manifest, generated_dir.join("Cargo.toml"))?;
+        fs::create_dir_all(generated_dir)?;
+        copy_if_changed(&source_manifest, &generated_dir.join("Cargo.toml"))?;
         let source_lock = project_root.join("zoxi.lock");
         if source_lock.exists() {
-            std::fs::copy(source_lock, generated_dir.join("Cargo.lock"))?;
+            copy_if_changed(&source_lock, &generated_dir.join("Cargo.lock"))?;
+        } else {
+            let generated_lock = generated_dir.join("Cargo.lock");
+            if generated_lock.exists() {
+                fs::remove_file(generated_lock)?;
+            }
         }
         return Ok(());
     }
@@ -27,12 +38,12 @@ pub fn write_generated_manifest(project_root: &Path, generated_dir: &Path) -> an
     writeln!(&mut manifest)?;
     writeln!(&mut manifest, "[dependencies]")?;
 
-    std::fs::create_dir_all(generated_dir)?;
-    std::fs::write(generated_dir.join("Cargo.toml"), manifest)?;
+    fs::create_dir_all(generated_dir)?;
+    write_if_changed(&generated_dir.join("Cargo.toml"), manifest.as_bytes())?;
     Ok(())
 }
 
-pub fn ensure_project_manifest(project_root: &Path) -> anyhow::Result<()> {
+pub fn ensure_project_manifest(project_root: &Path) -> Result<()> {
     let manifest_path = project_root.join("zoxi.toml");
     if manifest_path.exists() {
         return Ok(());
@@ -52,6 +63,6 @@ pub fn ensure_project_manifest(project_root: &Path) -> anyhow::Result<()> {
     writeln!(&mut manifest)?;
     writeln!(&mut manifest, "[dependencies]")?;
 
-    std::fs::write(manifest_path, manifest)?;
+    fs::write(manifest_path, manifest)?;
     Ok(())
 }

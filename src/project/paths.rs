@@ -1,20 +1,24 @@
-use std::path::PathBuf;
+use std::{
+    path::{PathBuf, Path},
+    env::current_dir
+};
+use anyhow::Result;
 
 pub struct ProjectPaths {
     root: PathBuf,
 }
 
 impl ProjectPaths {
-    pub fn new(root: Option<PathBuf>) -> anyhow::Result<Self> {
+    pub fn new(root: Option<PathBuf>) -> Result<Self> {
         let root = match root {
             Some(path) => path,
-            None => std::env::current_dir()?,
+            None => current_dir()?,
         };
 
         Ok(Self { root })
     }
 
-    pub fn root(&self) -> &std::path::Path {
+    pub fn root(&self) -> &Path {
         &self.root
     }
 
@@ -32,6 +36,14 @@ impl ProjectPaths {
 
     pub fn generated_dir(&self) -> PathBuf {
         self.root.join(".zoxi")
+    }
+
+    pub fn generated_cache_dir(&self) -> PathBuf {
+        self.generated_dir().join(".cache")
+    }
+
+    pub fn generated_cache_state_path(&self) -> PathBuf {
+        self.generated_cache_dir().join("state")
     }
 
     pub fn generated_src_dir(&self) -> PathBuf {
