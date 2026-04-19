@@ -1,0 +1,13 @@
+fn greet(name: &str): string {
+    "Hello, {name}!"
+}
+
+fn numbers(): Vec<i32> {
+    [1, 2, 3]
+}
+
+fn main() {
+    let greeting = greet("Zoxi");
+    let values = numbers();
+    println!("{} {}", greeting, values.len());
+}

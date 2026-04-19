@@ -1,3 +1,8 @@
+mod app;
+mod cli;
+mod project;
+mod transpiler;
+
 fn main() {
-    println!("Hello, world!");
+    app::run();
 }
