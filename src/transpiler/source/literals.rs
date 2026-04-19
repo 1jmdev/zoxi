@@ -182,17 +182,20 @@ fn should_keep_raw_string(source: &str, index: usize) -> bool {
         return false;
     }
 
-    if prev == Some(',') {
-        if let Some(container) = innermost_container(source, index) {
-            return matches!(container.open, '(')
-                && matches!(container.before_open, Some('!') | Some(')') | Some(']'))
-                || matches!(container.open, '(')
-                    && container.before_open.is_some_and(is_identifier_continue)
-                || matches!(container.open, '[')
-                    && matches!(container.before_open, Some(')') | Some(']') | Some('"'))
-                || matches!(container.open, '[')
-                    && container.before_open.is_some_and(is_identifier_continue);
-        }
+    if prev == Some(',')
+        && let Some(container) = innermost_container(source, index)
+    {
+        return match container.open {
+            '(' => {
+                matches!(container.before_open, Some('!') | Some(')') | Some(']'))
+                    || container.before_open.is_some_and(is_identifier_continue)
+            }
+            '[' => {
+                matches!(container.before_open, Some(')') | Some(']') | Some('"'))
+                    || container.before_open.is_some_and(is_identifier_continue)
+            }
+            _ => false,
+        };
     }
 
     if prev == Some('[')

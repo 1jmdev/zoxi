@@ -76,13 +76,12 @@ impl Transpiler {
             })?;
             let fingerprint = SourceFingerprint::from_path(&file)?;
 
-            if let Some(entry) = previous_state.get(relative) {
-                if entry.matches(&fingerprint)
-                    && generated_dir.join(entry.generated_path()).exists()
-                {
-                    next_state.insert(relative.to_path_buf(), entry.clone());
-                    continue;
-                }
+            if let Some(entry) = previous_state.get(relative)
+                && entry.matches(&fingerprint)
+                && generated_dir.join(entry.generated_path()).exists()
+            {
+                next_state.insert(relative.to_path_buf(), entry.clone());
+                continue;
             }
 
             let source = fs::read_to_string(&file)
