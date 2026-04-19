@@ -1,0 +1,91 @@
+{
+  "name": "zoxi-vscode",
+  "displayName": "Zoxi",
+  "description": "VS Code support for the Zoxi language with syntax highlighting and a built-in language server.",
+  "version": "0.1.0",
+  "publisher": "zoxi",
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.116.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "zoxi",
+    "lsp",
+    "language-server",
+    "syntax-highlighting"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onLanguage:zoxi",
+    "onCommand:zoxi.restartLanguageServer"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "zoxi.restartLanguageServer",
+        "title": "Zoxi: Restart Language Server"
+      }
+    ],
+    "configuration": {
+      "title": "Zoxi",
+      "properties": {
+        "zoxi.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Trace communication between VS Code and the Zoxi language server."
+        }
+      }
+    },
+    "languages": [
+      {
+        "id": "zoxi",
+        "aliases": [
+          "Zoxi",
+          "zoxi"
+        ],
+        "extensions": [
+          ".zo"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "zoxi",
+        "scopeName": "source.zoxi",
+        "path": "./syntaxes/zoxi.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "zoxi",
+        "path": "./snippets/zoxi.code-snippets"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "rm -rf dist && mkdir -p dist/server && bun build src/extension.ts --target=node --format=cjs --external vscode --outfile dist/extension.js && bun build src/server/server.ts --target=node --format=cjs --outfile dist/server/server.js",
+    "check": "bunx tsc -p tsconfig.json --noEmit",
+    "package": "bun run build && bunx vsce package --no-dependencies",
+    "watch": "bunx tsc -p tsconfig.json --watch"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1",
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.12"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@types/vscode": "^1.116.0",
+    "@vscode/vsce": "^3.9.1",
+    "typescript": "^5.9.3"
+  }
+}

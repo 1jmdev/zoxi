@@ -1,0 +1,132 @@
+{
+  "scopeName": "source.zoxi",
+  "name": "Zoxi",
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#strings"
+    },
+    {
+      "include": "#function-declarations"
+    },
+    {
+      "include": "#keywords"
+    },
+    {
+      "include": "#types"
+    },
+    {
+      "include": "#numbers"
+    },
+    {
+      "include": "#constants"
+    },
+    {
+      "include": "#operators"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.zoxi",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.zoxi",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.zoxi",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.zoxi",
+              "match": "\\\\."
+            },
+            {
+              "name": "meta.interpolation.zoxi",
+              "begin": "\\{",
+              "end": "\\}",
+              "patterns": [
+                {
+                  "include": "#keywords"
+                },
+                {
+                  "include": "#numbers"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "function-declarations": {
+      "patterns": [
+        {
+          "match": "\\b(fn)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": {
+              "name": "keyword.control.fn.zoxi"
+            },
+            "2": {
+              "name": "entity.name.function.zoxi"
+            }
+          }
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.zoxi",
+          "match": "\\b(fn|let|mut|if|else|match|loop|while|for|in|return|break|continue|async|await|pub|use|mod|struct|enum|impl|trait)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.zoxi",
+          "match": "\\b(string|String|Result|Option|Vec|HashMap|Self|bool|char|str|u8|u16|u32|u64|usize|i8|i16|i32|i64|isize|f32|f64)\\b"
+        },
+        {
+          "name": "support.type.zoxi",
+          "match": "\\b[A-Z][A-Za-z0-9_]*\\b"
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.zoxi",
+          "match": "\\b\\d+(?:_\\d+)*(?:\\.\\d+(?:_\\d+)*)?\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.zoxi",
+          "match": "\\b(true|false|None|Some|Ok|Err)\\b"
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.zoxi",
+          "match": "->|=>|==|!=|<=|>=|&&|\\|\\||[+\\-*/%=&|!<>.:?]"
+        }
+      ]
+    }
+  }
+}

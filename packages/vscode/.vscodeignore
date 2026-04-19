@@ -1,0 +1,7 @@
+src/**
+node_modules/**/.cache/**
+*.ts
+tsconfig.json
+CLAUDE.md
+README.md
+bun.lock

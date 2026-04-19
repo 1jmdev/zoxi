@@ -1,0 +1,38 @@
+{
+  "Function": {
+    "prefix": "fn",
+    "body": [
+      "fn ${1:name}(${2}): ${3:Type} {",
+      "    ${0}",
+      "}"
+    ],
+    "description": "Create a Zoxi function"
+  },
+  "Main": {
+    "prefix": "main",
+    "body": [
+      "fn main() {",
+      "    ${0}",
+      "}"
+    ],
+    "description": "Create a main function"
+  },
+  "If": {
+    "prefix": "if",
+    "body": [
+      "if ${1:condition} {",
+      "    ${0}",
+      "}"
+    ],
+    "description": "Create an if block"
+  },
+  "Match": {
+    "prefix": "match",
+    "body": [
+      "match ${1:value} {",
+      "    ${2:pattern} => ${0},",
+      "}"
+    ],
+    "description": "Create a match expression"
+  }
+}
