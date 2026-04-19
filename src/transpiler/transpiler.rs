@@ -3,7 +3,10 @@ use std::process::ExitCode;
 
 use anyhow::Context;
 
-use crate::project::{discover_sources, write_generated_manifest, ProjectPaths};
+use crate::cargo::{CargoRunner, CargoSubcommand};
+use crate::project::{
+    discover_sources, ensure_project_manifest, write_generated_manifest, ProjectPaths,
+};
 use crate::transpiler::error::TranspileError;
 use crate::transpiler::source::transpile_source;
 
@@ -16,14 +19,21 @@ impl Transpiler {
         Self { paths }
     }
 
-    pub fn build(&self, cargo_args: &[String]) -> anyhow::Result<ExitCode> {
-        self.transpile_project()?;
-        run_cargo(self.paths.generated_dir().as_path(), "build", cargo_args)
-    }
-
-    pub fn run(&self, cargo_args: &[String]) -> anyhow::Result<ExitCode> {
-        self.transpile_project()?;
-        run_cargo(self.paths.generated_dir().as_path(), "run", cargo_args)
+    pub fn execute(&self, cargo: CargoSubcommand) -> anyhow::Result<ExitCode> {
+        match cargo {
+            CargoSubcommand::Add(_) | CargoSubcommand::Remove(_) => {
+                ensure_project_manifest(self.paths.root())?;
+                self.edit_project_manifest_with_cargo(&cargo)
+            }
+            CargoSubcommand::Build(_)
+            | CargoSubcommand::Run(_)
+            | CargoSubcommand::Test(_)
+            | CargoSubcommand::Clean(_)
+            | CargoSubcommand::Custom { .. } => {
+                self.transpile_project()?;
+                CargoRunner::new(self.paths.generated_dir().as_path()).execute(&cargo)
+            }
+        }
     }
 
     fn transpile_project(&self) -> anyhow::Result<()> {
@@ -64,16 +74,41 @@ impl Transpiler {
 
         Ok(())
     }
-}
 
-fn run_cargo(generated_dir: &Path, subcommand: &str, cargo_args: &[String]) -> anyhow::Result<ExitCode> {
-    let mut command = std::process::Command::new("cargo");
-    command.current_dir(generated_dir).arg(subcommand).args(cargo_args);
+    fn edit_project_manifest_with_cargo(&self, cargo: &CargoSubcommand) -> anyhow::Result<ExitCode> {
+        let workspace = self.create_temp_manifest_workspace()?;
+        let result = CargoRunner::new(&workspace).execute(cargo);
 
-    let status = command.status()?;
-    if status.success() {
-        Ok(ExitCode::SUCCESS)
-    } else {
-        anyhow::bail!("cargo {subcommand} failed with status {status}")
+        if result.is_ok() {
+            std::fs::copy(workspace.join("Cargo.toml"), self.paths.config_path())?;
+            let generated_lock = workspace.join("Cargo.lock");
+            if generated_lock.exists() {
+                std::fs::copy(generated_lock, self.paths.lock_path())?;
+            }
+        }
+
+        let cleanup_result = std::fs::remove_dir_all(&workspace);
+        match (result, cleanup_result) {
+            (Ok(status), Ok(())) => Ok(status),
+            (Ok(_), Err(error)) => Err(error.into()),
+            (Err(error), Ok(())) => Err(error),
+            (Err(error), Err(_)) => Err(error),
+        }
+    }
+
+    fn create_temp_manifest_workspace(&self) -> anyhow::Result<std::path::PathBuf> {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)?
+            .as_nanos();
+        let workspace = std::env::temp_dir().join(format!("zoxi-cargo-{}-{unique}", std::process::id()));
+        let src_dir = workspace.join("src");
+
+        std::fs::create_dir_all(&src_dir)?;
+        std::fs::copy(self.paths.config_path(), workspace.join("Cargo.toml"))?;
+        if self.paths.lock_path().exists() {
+            std::fs::copy(self.paths.lock_path(), workspace.join("Cargo.lock"))?;
+        }
+        std::fs::write(src_dir.join("main.rs"), "fn main() {}\n")?;
+        Ok(workspace)
     }
 }

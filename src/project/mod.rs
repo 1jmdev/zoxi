@@ -3,5 +3,5 @@ pub mod manifest;
 pub mod paths;
 
 pub use discover::discover_sources;
-pub use manifest::write_generated_manifest;
+pub use manifest::{ensure_project_manifest, write_generated_manifest};
 pub use paths::ProjectPaths;

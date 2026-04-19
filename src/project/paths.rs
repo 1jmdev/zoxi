@@ -22,6 +22,14 @@ impl ProjectPaths {
         self.root.join("src")
     }
 
+    pub fn config_path(&self) -> PathBuf {
+        self.root.join("zoxi.toml")
+    }
+
+    pub fn lock_path(&self) -> PathBuf {
+        self.root.join("zoxi.lock")
+    }
+
     pub fn generated_dir(&self) -> PathBuf {
         self.root.join(".zoxi")
     }

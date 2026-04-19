@@ -1,3 +1,3 @@
 pub mod args;
 
-pub use args::{Cli, Command};
+pub use args::{CargoCommandArgs, Cli, Command};
