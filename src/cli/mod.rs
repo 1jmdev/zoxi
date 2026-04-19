@@ -1,3 +1,4 @@
-pub mod args;
+mod args;
+mod cli;
 
-pub use args::{CargoCommandArgs, Cli, Command};
+pub use cli::run;
