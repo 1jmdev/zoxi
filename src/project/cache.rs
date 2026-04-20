@@ -1,29 +1,43 @@
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use std::{
     collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
+    time::UNIX_EPOCH,
 };
 
 use crate::project::file_sync::write_if_changed;
-use crate::project::stable_hash_bytes;
 
-const CACHE_VERSION: &str = "v1";
-const BUILD_CACHE_VERSION: &str = "build-v1";
+const CACHE_VERSION: &str = "v2";
+const BUILD_CACHE_VERSION: &str = "build-v2";
 
 #[derive(Clone)]
 pub struct SourceFingerprint {
     size: u64,
-    hash: u64,
+    modified: u64,
 }
 
 impl SourceFingerprint {
     pub fn from_path(path: &Path) -> Result<Self> {
-        let content = fs::read(path)?;
+        let metadata = fs::metadata(path)
+            .with_context(|| format!("failed to read metadata for {}", path.display()))?;
+        let modified = metadata
+            .modified()
+            .with_context(|| format!("failed to read modified time for {}", path.display()))?
+            .duration_since(UNIX_EPOCH)
+            .with_context(|| format!("invalid modified time for {}", path.display()))?;
         Ok(Self {
-            size: content.len() as u64,
-            hash: stable_hash_bytes(&content),
+            size: metadata.len(),
+            modified: modified.as_nanos() as u64,
         })
+    }
+
+    pub fn size(&self) -> u64 {
+        self.size
+    }
+
+    pub fn modified(&self) -> u64 {
+        self.modified
     }
 }
 
@@ -47,7 +61,7 @@ impl CacheEntry {
 
     pub fn matches(&self, fingerprint: &SourceFingerprint) -> bool {
         self.fingerprint.size == fingerprint.size
-            && self.fingerprint.hash == fingerprint.hash
+            && self.fingerprint.modified == fingerprint.modified
     }
 }
 
@@ -109,7 +123,7 @@ fn parse_cache_state(path: &Path) -> Result<CacheState> {
         let Some(size) = parts.next() else {
             return Ok(CacheState::new());
         };
-        let Some(hash) = parts.next() else {
+        let Some(modified) = parts.next() else {
             return Ok(CacheState::new());
         };
         if parts.next().is_some() {
@@ -122,7 +136,7 @@ fn parse_cache_state(path: &Path) -> Result<CacheState> {
                 PathBuf::from(unescape(generated_path)?),
                 SourceFingerprint {
                     size: size.parse()?,
-                    hash: hash.parse()?,
+                    modified: modified.parse()?,
                 },
             ),
         );
@@ -146,7 +160,7 @@ pub fn write_cache_state(path: &Path, state: &CacheState) -> Result<()> {
         content.push('\t');
         content.push_str(&entry.fingerprint.size.to_string());
         content.push('\t');
-        content.push_str(&entry.fingerprint.hash.to_string());
+        content.push_str(&entry.fingerprint.modified.to_string());
         content.push('\n');
     }
 

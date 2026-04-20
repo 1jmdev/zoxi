@@ -11,7 +11,7 @@ use anyhow::{Context, Result};
 use crate::build::{EnvVar, RustcOptions, status};
 use crate::project::{
     BuildCacheEntry, BuildCacheState, ProjectManifest, ProjectPaths, load_build_cache_state,
-    stable_hash_bytes, stable_hash_str, write_build_cache_state,
+    stable_hash_str, write_build_cache_state, SourceFingerprint,
 };
 
 pub struct DependencyArtifacts {
@@ -123,8 +123,15 @@ fn compile_target(
         fs::create_dir_all(parent)?;
     }
 
-    let fingerprint = target_fingerprint(target, manifest, options, mode, dependencies)?;
     let target_key = target_key(target, options.release, mode);
+    let fingerprint = target_fingerprint(
+        target,
+        manifest,
+        options,
+        mode,
+        dependencies,
+        local_library_path,
+    )?;
     if let Some(entry) = previous_state.get(&target_key)
         && entry.matches(&output_path, fingerprint)
         && output_path.exists()
@@ -228,10 +235,12 @@ fn target_fingerprint(
     options: &RustcOptions,
     mode: BuildMode,
     dependencies: &DependencyArtifacts,
+    local_library_path: Option<&Path>,
 ) -> Result<u64> {
-    let source = fs::read(&target.source_path)
-        .with_context(|| format!("failed to read {}", target.source_path.display()))?;
-    let mut seed = stable_hash_bytes(&source).to_string();
+    let source = SourceFingerprint::from_path(&target.source_path)?;
+    let mut seed = source.size().to_string();
+    seed.push('|');
+    seed.push_str(&source.modified().to_string());
     seed.push('|');
     seed.push_str(manifest.edition());
     seed.push('|');
@@ -245,6 +254,13 @@ fn target_fingerprint(
     });
     seed.push('|');
     seed.push_str(&dependencies.fingerprint.to_string());
+    if let Some(path) = local_library_path {
+        let library = SourceFingerprint::from_path(path)?;
+        seed.push('|');
+        seed.push_str(&library.size().to_string());
+        seed.push('|');
+        seed.push_str(&library.modified().to_string());
+    }
     options.args.iter().for_each(|arg| {
         seed.push('|');
         seed.push_str(arg);

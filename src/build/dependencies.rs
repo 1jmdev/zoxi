@@ -15,7 +15,7 @@ use crate::build::compiler::DependencyArtifacts;
 use crate::build::{print_command_output, status};
 use crate::project::file_sync::write_if_changed;
 use crate::project::{
-    ProjectManifest, ProjectPaths, add_dependencies, remove_dependencies, stable_hash_bytes,
+    ProjectManifest, ProjectPaths, SourceFingerprint, add_dependencies, remove_dependencies,
     stable_hash_str,
 };
 
@@ -319,23 +319,29 @@ fn package_fingerprint(
     release: bool,
     compiled_dependencies: &[(String, String, PathBuf)],
 ) -> Result<u64> {
-    let source = fs::read(&package.lib_path)
-        .with_context(|| format!("failed to read {}", package.lib_path.display()))?;
-    let mut seed = stable_hash_bytes(&source).to_string();
+    let source = SourceFingerprint::from_path(&package.lib_path)?;
+    let mut seed = source.size().to_string();
+    seed.push('|');
+    seed.push_str(&source.modified().to_string());
     seed.push('|');
     seed.push_str(&package.version.to_string());
     seed.push('|');
     seed.push_str(if release { "release" } else { "debug" });
     seed.push('|');
     seed.push_str(&package.edition);
-    compiled_dependencies.iter().for_each(|(extern_name, id, path)| {
+    for (extern_name, id, path) in compiled_dependencies {
         seed.push('|');
         seed.push_str(extern_name);
         seed.push('|');
         seed.push_str(id);
         seed.push('|');
         seed.push_str(&path.display().to_string());
-    });
+        let fingerprint = SourceFingerprint::from_path(path)?;
+        seed.push('|');
+        seed.push_str(&fingerprint.size().to_string());
+        seed.push('|');
+        seed.push_str(&fingerprint.modified().to_string());
+    }
     Ok(stable_hash_str(&seed))
 }
 

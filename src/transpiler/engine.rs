@@ -63,7 +63,7 @@ impl Transpiler {
         let mut transpiled_files = 0usize;
         let mut cached_files = 0usize;
 
-        status("Transpiling", src_dir.display());
+        status("Checking", src_dir.display());
 
         for file in files {
             let relative = file.strip_prefix(&src_dir).with_context(|| {
@@ -100,10 +100,12 @@ impl Transpiler {
 
         self.remove_stale_generated_files(&generated_dir, &generated_src_dir, &next_state)?;
         write_cache_state(&state_path, &next_state)?;
-        status(
-            "Finished",
-            format!("transpilation ({transpiled_files} changed, {cached_files} cached)"),
-        );
+        if transpiled_files > 0 {
+            status(
+                "Finished",
+                format!("transpilation ({transpiled_files} changed, {cached_files} fresh)"),
+            );
+        }
 
         Ok(())
     }
