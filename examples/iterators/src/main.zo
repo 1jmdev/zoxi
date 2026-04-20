@@ -1,0 +1,14 @@
+fn main() {
+    let nums = [1, 2, 3, 6, 8, 10];
+
+    let doubled: Vec<i32> = nums.map(x => x * 2);
+    let positives_doubled: Vec<i32> = nums.filter(x => x > 2).map(x => x * 2);
+
+    let first_large = nums.find(x => x > 5);
+    let first_large_index = nums.findIndex(x => x > 5);
+
+    println!("doubled: {:?}", doubled);
+    println!("positives_doubled: {:?}", positives_doubled);
+    println!("first_large: {:?}", first_large);
+    println!("first_large_index: {:?}", first_large_index);
+}
