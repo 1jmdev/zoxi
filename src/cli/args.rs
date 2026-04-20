@@ -4,7 +4,7 @@ use clap::{Args, Parser, Subcommand};
 
 #[derive(Debug, Parser)]
 #[command(name = "zoxi")]
-#[command(about = "Transpile Zoxi sources into Rust and run cargo")]
+#[command(about = "Transpile Zoxi sources into Rust and compile with rustc")]
 pub struct Cli {
     #[arg(long, short, global = true)]
     pub path: Option<PathBuf>,
@@ -14,56 +14,26 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    Add(AddCommand),
-    Build(CargoCommandArgs),
-    Clean(CargoCommandArgs),
-    Remove(RemoveCommand),
+    Build(RustcCommandArgs),
+    Clean,
     Run(RunCommand),
-    Test(CargoCommandArgs),
-    Cargo(CustomCargoCommand),
+    Test(RustcCommandArgs),
 }
 
 #[derive(Debug, Args, Clone, Default)]
-pub struct CargoCommandArgs {
+pub struct RustcCommandArgs {
     #[arg(short = 'r', long = "release")]
     pub release: bool,
     #[arg(short = 'e', long = "env", value_name = "KEY=VALUE")]
     pub env: Vec<String>,
     #[arg(allow_hyphen_values = true)]
-    pub cargo_args: Vec<String>,
+    pub rustc_args: Vec<String>,
 }
 
 #[derive(Debug, Args, Clone, Default)]
 pub struct RunCommand {
     #[command(flatten)]
-    pub cargo: CargoCommandArgs,
+    pub rustc: RustcCommandArgs,
     #[arg(last = true)]
     pub app_args: Vec<String>,
-}
-
-#[derive(Debug, Args, Clone, Default)]
-pub struct AddCommand {
-    #[arg(short = 'e', long = "env", value_name = "KEY=VALUE")]
-    pub env: Vec<String>,
-    #[arg(required = true)]
-    pub packages: Vec<String>,
-    #[arg(last = true)]
-    pub cargo_args: Vec<String>,
-}
-
-#[derive(Debug, Args, Clone, Default)]
-pub struct RemoveCommand {
-    #[arg(short = 'e', long = "env", value_name = "KEY=VALUE")]
-    pub env: Vec<String>,
-    #[arg(required = true)]
-    pub packages: Vec<String>,
-    #[arg(last = true)]
-    pub cargo_args: Vec<String>,
-}
-
-#[derive(Debug, Args, Clone, Default)]
-pub struct CustomCargoCommand {
-    pub name: String,
-    #[command(flatten)]
-    pub cargo: CargoCommandArgs,
 }

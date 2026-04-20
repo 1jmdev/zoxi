@@ -1,4 +1,4 @@
-mod cargo;
+mod build;
 mod cli;
 mod project;
 mod transpiler;

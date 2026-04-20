@@ -1,20 +1,18 @@
 use std::{
     collections::BTreeSet,
-    env, fs,
-    path::{Path, PathBuf},
-    process,
+    fs,
+    path::Path,
     process::ExitCode,
-    time,
 };
 
 use anyhow::{Context, Result};
 use walkdir::WalkDir;
 
-use crate::cargo::{CargoRunner, CargoSubcommand};
+use crate::build::{BuildSubcommand, RustcRunner};
 use crate::project::file_sync::write_if_changed;
 use crate::project::{
-    CacheEntry, CacheState, ProjectPaths, SourceFingerprint, discover_sources,
-    ensure_project_manifest, load_cache_state, write_cache_state, write_generated_manifest,
+    CacheEntry, CacheState, ProjectPaths, SourceFingerprint, discover_sources, load_cache_state,
+    write_cache_state,
 };
 use crate::transpiler::compiler::compile_source;
 use crate::transpiler::error::TranspileError;
@@ -28,19 +26,14 @@ impl Transpiler {
         Self { paths }
     }
 
-    pub fn execute(&self, cargo: CargoSubcommand) -> Result<ExitCode> {
-        match cargo {
-            CargoSubcommand::Add(_) | CargoSubcommand::Remove(_) => {
-                ensure_project_manifest(self.paths.root())?;
-                self.edit_project_manifest_with_cargo(&cargo)
-            }
-            CargoSubcommand::Build(_)
-            | CargoSubcommand::Run(_)
-            | CargoSubcommand::Test(_)
-            | CargoSubcommand::Clean(_)
-            | CargoSubcommand::Custom { .. } => {
+    pub fn execute(&self, command: BuildSubcommand) -> Result<ExitCode> {
+        match command {
+            BuildSubcommand::Clean(_) => RustcRunner::new(&self.paths).execute(&command),
+            BuildSubcommand::Build(_)
+            | BuildSubcommand::Run(_)
+            | BuildSubcommand::Test(_) => {
                 self.transpile_project()?;
-                CargoRunner::new(self.paths.generated_dir().as_path()).execute(&cargo)
+                RustcRunner::new(&self.paths).execute(&command)
             }
         }
     }
@@ -61,9 +54,9 @@ impl Transpiler {
         let generated_dir = self.paths.generated_dir();
         let generated_src_dir = self.paths.generated_src_dir();
         fs::create_dir_all(&generated_src_dir)?;
-        fs::create_dir_all(self.paths.generated_cache_dir())?;
-        write_generated_manifest(self.paths.root(), &generated_dir)?;
-        let previous_state = load_cache_state(&self.paths.generated_cache_state_path())?;
+        self.remove_legacy_generated_artifacts()?;
+        let state_path = self.paths.transpile_cache_state_path()?;
+        let previous_state = load_cache_state(&state_path)?;
         let mut next_state = CacheState::new();
 
         for file in files {
@@ -98,7 +91,28 @@ impl Transpiler {
         }
 
         self.remove_stale_generated_files(&generated_dir, &generated_src_dir, &next_state)?;
-        write_cache_state(&self.paths.generated_cache_state_path(), &next_state)?;
+        write_cache_state(&state_path, &next_state)?;
+
+        Ok(())
+    }
+
+    fn remove_legacy_generated_artifacts(&self) -> Result<()> {
+        for path in [
+            self.paths.generated_dir().join("Cargo.toml"),
+            self.paths.generated_dir().join("Cargo.lock"),
+            self.paths.generated_dir().join("target"),
+            self.paths.generated_dir().join(".cache"),
+        ] {
+            if !path.exists() {
+                continue;
+            }
+
+            if path.is_dir() {
+                fs::remove_dir_all(path)?;
+            } else {
+                fs::remove_file(path)?;
+            }
+        }
 
         Ok(())
     }
@@ -160,42 +174,5 @@ impl Transpiler {
         }
 
         Ok(())
-    }
-
-    fn edit_project_manifest_with_cargo(&self, cargo: &CargoSubcommand) -> Result<ExitCode> {
-        let workspace = self.create_temp_manifest_workspace()?;
-        let result = CargoRunner::new(&workspace).execute(cargo);
-
-        if result.is_ok() {
-            fs::copy(workspace.join("Cargo.toml"), self.paths.config_path())?;
-            let generated_lock = workspace.join("Cargo.lock");
-            if generated_lock.exists() {
-                fs::copy(generated_lock, self.paths.lock_path())?;
-            }
-        }
-
-        let cleanup_result = fs::remove_dir_all(&workspace);
-        match (result, cleanup_result) {
-            (Ok(status), Ok(())) => Ok(status),
-            (Ok(_), Err(error)) => Err(error.into()),
-            (Err(error), Ok(())) => Err(error),
-            (Err(error), Err(_)) => Err(error),
-        }
-    }
-
-    fn create_temp_manifest_workspace(&self) -> Result<PathBuf> {
-        let unique = time::SystemTime::now()
-            .duration_since(time::UNIX_EPOCH)?
-            .as_nanos();
-        let workspace = env::temp_dir().join(format!("zoxi-cargo-{}-{unique}", process::id()));
-        let src_dir = workspace.join("src");
-
-        fs::create_dir_all(&src_dir)?;
-        fs::copy(self.paths.config_path(), workspace.join("Cargo.toml"))?;
-        if self.paths.lock_path().exists() {
-            fs::copy(self.paths.lock_path(), workspace.join("Cargo.lock"))?;
-        }
-        fs::write(src_dir.join("main.rs"), "fn main() {}\n")?;
-        Ok(workspace)
     }
 }

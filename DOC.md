@@ -24,11 +24,12 @@ Generated Rust files:
 .zoxi/src/foo/bar.rs
 ```
 
-Project manifest files:
+Build cache and compiled artifacts:
 
 ```text
-zoxi.toml -> .zoxi/Cargo.toml
-zoxi.lock -> .zoxi/Cargo.lock
+~/.zoxi/cache/projects/<project-hash>/artifacts/
+~/.zoxi/cache/projects/<project-hash>/incremental/
+~/.zoxi/cache/projects/<project-hash>/transpile-state
 ```
 
 ## Function Return Syntax

@@ -15,8 +15,3 @@ pub fn write_if_changed(path: &Path, content: &[u8]) -> Result<bool> {
     fs::write(path, content)?;
     Ok(true)
 }
-
-pub fn copy_if_changed(source: &Path, destination: &Path) -> Result<bool> {
-    let content = fs::read(source)?;
-    write_if_changed(destination, &content)
-}

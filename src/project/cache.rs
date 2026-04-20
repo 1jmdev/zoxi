@@ -3,31 +3,25 @@ use std::{
     collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
-    time::UNIX_EPOCH,
 };
 
 use crate::project::file_sync::write_if_changed;
+use crate::project::stable_hash_bytes;
 
 const CACHE_VERSION: &str = "v1";
 
 #[derive(Clone)]
 pub struct SourceFingerprint {
     size: u64,
-    modified_seconds: u64,
-    modified_nanoseconds: u32,
+    hash: u64,
 }
 
 impl SourceFingerprint {
     pub fn from_path(path: &Path) -> Result<Self> {
-        let metadata = fs::metadata(path)?;
-        let modified = metadata
-            .modified()?
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default();
+        let content = fs::read(path)?;
         Ok(Self {
-            size: metadata.len(),
-            modified_seconds: modified.as_secs(),
-            modified_nanoseconds: modified.subsec_nanos(),
+            size: content.len() as u64,
+            hash: stable_hash_bytes(&content),
         })
     }
 }
@@ -52,8 +46,7 @@ impl CacheEntry {
 
     pub fn matches(&self, fingerprint: &SourceFingerprint) -> bool {
         self.fingerprint.size == fingerprint.size
-            && self.fingerprint.modified_seconds == fingerprint.modified_seconds
-            && self.fingerprint.modified_nanoseconds == fingerprint.modified_nanoseconds
+            && self.fingerprint.hash == fingerprint.hash
     }
 }
 
@@ -115,10 +108,7 @@ fn parse_cache_state(path: &Path) -> Result<CacheState> {
         let Some(size) = parts.next() else {
             return Ok(CacheState::new());
         };
-        let Some(seconds) = parts.next() else {
-            return Ok(CacheState::new());
-        };
-        let Some(nanoseconds) = parts.next() else {
+        let Some(hash) = parts.next() else {
             return Ok(CacheState::new());
         };
         if parts.next().is_some() {
@@ -131,8 +121,7 @@ fn parse_cache_state(path: &Path) -> Result<CacheState> {
                 PathBuf::from(unescape(generated_path)?),
                 SourceFingerprint {
                     size: size.parse()?,
-                    modified_seconds: seconds.parse()?,
-                    modified_nanoseconds: nanoseconds.parse()?,
+                    hash: hash.parse()?,
                 },
             ),
         );
@@ -156,9 +145,7 @@ pub fn write_cache_state(path: &Path, state: &CacheState) -> Result<()> {
         content.push('\t');
         content.push_str(&entry.fingerprint.size.to_string());
         content.push('\t');
-        content.push_str(&entry.fingerprint.modified_seconds.to_string());
-        content.push('\t');
-        content.push_str(&entry.fingerprint.modified_nanoseconds.to_string());
+        content.push_str(&entry.fingerprint.hash.to_string());
         content.push('\n');
     }
 
