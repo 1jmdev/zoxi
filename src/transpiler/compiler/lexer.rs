@@ -1,9 +1,10 @@
 use logos::Logos;
+use std::fmt;
 
 use crate::transpiler::compiler::ast::Span;
 use crate::transpiler::error::TranspileError;
 
-#[derive(Logos, Clone, Debug, Eq, PartialEq)]
+#[derive(Logos, Clone, Debug, Eq, PartialEq, Hash)]
 #[logos(skip r"[ \t\r\n\f]+")]
 pub enum TokenKind {
     #[token("(")]
@@ -56,11 +57,17 @@ pub enum TokenKind {
     Punct,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Token {
     pub kind: TokenKind,
     pub text: String,
     pub span: Span,
+}
+
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.text)
+    }
 }
 
 pub fn lex(source: &str) -> Result<Vec<Token>, TranspileError> {
