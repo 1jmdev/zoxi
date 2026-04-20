@@ -2,16 +2,18 @@ use std::{
     env,
     ffi::OsString,
     fs,
+    hash::Hasher,
     path::{Path, PathBuf},
     process::Command,
 };
 
 use anyhow::{Context, Result};
+use rustc_hash::FxHasher;
 
 use crate::build::{EnvVar, RustcOptions, status};
 use crate::project::{
     BuildCacheEntry, BuildCacheState, ProjectManifest, ProjectPaths, load_build_cache_state,
-    stable_hash_str, write_build_cache_state, SourceFingerprint,
+    write_build_cache_state, SourceFingerprint,
 };
 
 pub struct DependencyArtifacts {
@@ -265,7 +267,9 @@ fn target_fingerprint(
         seed.push('|');
         seed.push_str(arg);
     });
-    Ok(stable_hash_str(&seed))
+    let mut hasher = FxHasher::default();
+    hasher.write(seed.as_bytes());
+    Ok(hasher.finish())
 }
 
 fn target_key(target: &TargetDefinition, release: bool, mode: BuildMode) -> String {

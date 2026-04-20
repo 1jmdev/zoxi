@@ -1,12 +1,14 @@
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeSet,
     fs,
+    hash::Hasher,
     path::{Path, PathBuf},
     process::Command,
 };
 
 use anyhow::{Context, Result};
 use flate2::read::GzDecoder;
+use rustc_hash::{FxHashMap, FxHasher};
 use semver::{Version, VersionReq};
 use serde::Deserialize;
 use tar::Archive;
@@ -14,10 +16,7 @@ use tar::Archive;
 use crate::build::compiler::DependencyArtifacts;
 use crate::build::{print_command_output, status};
 use crate::project::file_sync::write_if_changed;
-use crate::project::{
-    ProjectManifest, ProjectPaths, SourceFingerprint, add_dependencies, remove_dependencies,
-    stable_hash_str,
-};
+use crate::project::{ProjectManifest, ProjectPaths, SourceFingerprint, add_dependencies, remove_dependencies};
 
 pub fn add_packages(paths: &ProjectPaths, packages: &[String]) -> Result<()> {
     if packages.is_empty() {
@@ -67,7 +66,7 @@ pub fn prepare_dependency_artifacts(
         })
         .collect::<Result<Vec<_>>>()?;
 
-    let mut compiled = BTreeMap::new();
+    let mut compiled = FxHashMap::default();
     let mut fingerprint_seed = String::new();
     for (_, package_id) in &root_ids {
         let artifact = resolver.compile_package(package_id, &mut compiled)?;
@@ -99,14 +98,18 @@ pub fn prepare_dependency_artifacts(
     Ok(DependencyArtifacts {
         externs,
         search_dirs,
-        fingerprint: stable_hash_str(&fingerprint_seed),
+        fingerprint: {
+            let mut hasher = FxHasher::default();
+            hasher.write(fingerprint_seed.as_bytes());
+            hasher.finish()
+        },
     })
 }
 
 struct RegistryResolver<'a> {
     paths: &'a ProjectPaths,
     release: bool,
-    packages: BTreeMap<String, PackageNode>,
+    packages: FxHashMap<String, PackageNode>,
 }
 
 impl<'a> RegistryResolver<'a> {
@@ -114,7 +117,7 @@ impl<'a> RegistryResolver<'a> {
         Self {
             paths,
             release,
-            packages: BTreeMap::new(),
+            packages: FxHashMap::default(),
         }
     }
 
@@ -148,7 +151,7 @@ impl<'a> RegistryResolver<'a> {
     fn compile_package(
         &self,
         package_id: &str,
-        compiled: &mut BTreeMap<String, PathBuf>,
+        compiled: &mut FxHashMap<String, PathBuf>,
     ) -> Result<PathBuf> {
         if let Some(path) = compiled.get(package_id) {
             return Ok(path.clone());
@@ -342,7 +345,9 @@ fn package_fingerprint(
         seed.push('|');
         seed.push_str(&fingerprint.modified().to_string());
     }
-    Ok(stable_hash_str(&seed))
+    let mut hasher = FxHasher::default();
+    hasher.write(seed.as_bytes());
+    Ok(hasher.finish())
 }
 
 fn read_fingerprint(path: &Path) -> Result<Option<u64>> {
