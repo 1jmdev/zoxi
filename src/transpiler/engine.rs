@@ -16,8 +16,8 @@ use crate::project::{
     CacheEntry, CacheState, ProjectPaths, SourceFingerprint, discover_sources,
     ensure_project_manifest, load_cache_state, write_cache_state, write_generated_manifest,
 };
+use crate::transpiler::compiler::compile_source;
 use crate::transpiler::error::TranspileError;
-use crate::transpiler::source::transpile_source;
 
 pub struct Transpiler {
     paths: ProjectPaths,
@@ -86,7 +86,8 @@ impl Transpiler {
 
             let source = fs::read_to_string(&file)
                 .with_context(|| format!("failed to read {}", file.display()))?;
-            let transpiled = transpile_source(&source, relative == Path::new("main.zo"))
+            let transpiled = compile_source(&source, &relative.display().to_string())
+                .map_err(|error| anyhow::anyhow!(error.render(&relative.display().to_string(), &source)))
                 .with_context(|| format!("failed to transpile {}", file.display()))?;
             write_if_changed(&output, transpiled.as_bytes())
                 .with_context(|| format!("failed to write {}", output.display()))?;
