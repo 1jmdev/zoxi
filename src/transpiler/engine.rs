@@ -8,7 +8,7 @@ use std::{
 use anyhow::{Context, Result};
 use walkdir::WalkDir;
 
-use crate::build::{BuildSubcommand, RustcRunner};
+use crate::build::{BuildSubcommand, RustcRunner, status};
 use crate::project::file_sync::write_if_changed;
 use crate::project::{
     CacheEntry, CacheState, ProjectPaths, SourceFingerprint, discover_sources, load_cache_state,
@@ -28,7 +28,9 @@ impl Transpiler {
 
     pub fn execute(&self, command: BuildSubcommand) -> Result<ExitCode> {
         match command {
-            BuildSubcommand::Clean(_) => RustcRunner::new(&self.paths).execute(&command),
+            BuildSubcommand::Add(_) | BuildSubcommand::Remove(_) | BuildSubcommand::Clean(_) => {
+                RustcRunner::new(&self.paths).execute(&command)
+            }
             BuildSubcommand::Build(_)
             | BuildSubcommand::Run(_)
             | BuildSubcommand::Test(_) => {
@@ -55,9 +57,13 @@ impl Transpiler {
         let generated_src_dir = self.paths.generated_src_dir();
         fs::create_dir_all(&generated_src_dir)?;
         self.remove_legacy_generated_artifacts()?;
-        let state_path = self.paths.transpile_cache_state_path()?;
+        let state_path = self.paths.transpile_cache_state_path();
         let previous_state = load_cache_state(&state_path)?;
         let mut next_state = CacheState::new();
+        let mut transpiled_files = 0usize;
+        let mut cached_files = 0usize;
+
+        status("Transpiling", src_dir.display());
 
         for file in files {
             let relative = file.strip_prefix(&src_dir).with_context(|| {
@@ -74,6 +80,7 @@ impl Transpiler {
                 && generated_dir.join(entry.generated_path()).exists()
             {
                 next_state.insert(relative.to_path_buf(), entry.clone());
+                cached_files += 1;
                 continue;
             }
 
@@ -88,10 +95,15 @@ impl Transpiler {
                 relative.to_path_buf(),
                 CacheEntry::new(generated_relative.to_path_buf(), fingerprint),
             );
+            transpiled_files += 1;
         }
 
         self.remove_stale_generated_files(&generated_dir, &generated_src_dir, &next_state)?;
         write_cache_state(&state_path, &next_state)?;
+        status(
+            "Finished",
+            format!("transpilation ({transpiled_files} changed, {cached_files} cached)"),
+        );
 
         Ok(())
     }
@@ -101,7 +113,6 @@ impl Transpiler {
             self.paths.generated_dir().join("Cargo.toml"),
             self.paths.generated_dir().join("Cargo.lock"),
             self.paths.generated_dir().join("target"),
-            self.paths.generated_dir().join(".cache"),
         ] {
             if !path.exists() {
                 continue;

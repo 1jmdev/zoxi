@@ -9,6 +9,7 @@ use crate::project::file_sync::write_if_changed;
 use crate::project::stable_hash_bytes;
 
 const CACHE_VERSION: &str = "v1";
+const BUILD_CACHE_VERSION: &str = "build-v1";
 
 #[derive(Clone)]
 pub struct SourceFingerprint {
@@ -151,6 +152,116 @@ pub fn write_cache_state(path: &Path, state: &CacheState) -> Result<()> {
 
     write_if_changed(path, content.as_bytes())?;
     Ok(())
+}
+
+pub struct BuildCacheState {
+    entries: BTreeMap<String, BuildCacheEntry>,
+}
+
+impl BuildCacheState {
+    pub fn new() -> Self {
+        Self {
+            entries: BTreeMap::new(),
+        }
+    }
+
+    pub fn get(&self, key: &str) -> Option<&BuildCacheEntry> {
+        self.entries.get(key)
+    }
+
+    pub fn insert(&mut self, key: String, entry: BuildCacheEntry) {
+        self.entries.insert(key, entry);
+    }
+
+    pub fn entries(&self) -> impl Iterator<Item = (&String, &BuildCacheEntry)> {
+        self.entries.iter()
+    }
+}
+
+pub struct BuildCacheEntry {
+    output_path: PathBuf,
+    fingerprint: u64,
+}
+
+impl BuildCacheEntry {
+    pub fn new(output_path: PathBuf, fingerprint: u64) -> Self {
+        Self {
+            output_path,
+            fingerprint,
+        }
+    }
+
+    pub fn matches(&self, output_path: &Path, fingerprint: u64) -> bool {
+        self.fingerprint == fingerprint && self.output_path == output_path
+    }
+}
+
+pub fn load_build_cache_state(path: &Path) -> Result<BuildCacheState> {
+    if !path.exists() {
+        return Ok(BuildCacheState::new());
+    }
+
+    match parse_build_cache_state(path) {
+        Ok(state) => Ok(state),
+        Err(_) => Ok(BuildCacheState::new()),
+    }
+}
+
+pub fn write_build_cache_state(path: &Path, state: &BuildCacheState) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    let mut content = String::from(BUILD_CACHE_VERSION);
+    content.push('\n');
+
+    for (key, entry) in state.entries() {
+        content.push_str(&escape(key));
+        content.push('\t');
+        content.push_str(&escape(&entry.output_path.display().to_string()));
+        content.push('\t');
+        content.push_str(&entry.fingerprint.to_string());
+        content.push('\n');
+    }
+
+    write_if_changed(path, content.as_bytes())?;
+    Ok(())
+}
+
+fn parse_build_cache_state(path: &Path) -> Result<BuildCacheState> {
+    let content = fs::read_to_string(path)?;
+    let mut lines = content.lines();
+    if lines.next() != Some(BUILD_CACHE_VERSION) {
+        return Ok(BuildCacheState::new());
+    }
+
+    let mut state = BuildCacheState::new();
+    for line in lines {
+        if line.is_empty() {
+            continue;
+        }
+
+        let mut parts = line.split('\t');
+        let Some(key) = parts.next() else {
+            return Ok(BuildCacheState::new());
+        };
+        let Some(output_path) = parts.next() else {
+            return Ok(BuildCacheState::new());
+        };
+        let Some(fingerprint) = parts.next() else {
+            return Ok(BuildCacheState::new());
+        };
+        if parts.next().is_some() {
+            return Ok(BuildCacheState::new());
+        }
+
+        state.insert(
+            unescape(key)?,
+            BuildCacheEntry::new(PathBuf::from(unescape(output_path)?), fingerprint.parse()?),
+        );
+    }
+
+    Ok(state)
 }
 
 fn escape(value: &str) -> String {

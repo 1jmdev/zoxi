@@ -3,7 +3,8 @@ use std::process::ExitCode;
 use clap::Parser;
 
 use crate::build::{
-    BuildOptions, BuildSubcommand, CleanOptions, EnvVar, RunOptions, RustcOptions, TestOptions,
+    AddOptions, BuildOptions, BuildSubcommand, CleanOptions, EnvVar, RemoveOptions, RunOptions,
+    RustcOptions, TestOptions, print_error,
 };
 use super::args::{Cli, Command, RustcCommandArgs};
 use crate::project::ProjectPaths;
@@ -11,7 +12,7 @@ use crate::transpiler::Transpiler;
 
 pub fn run() {
     if let Err(error) = try_run() {
-        eprintln!("{error:#}");
+        print_error(&error);
         std::process::exit(1);
     }
 }
@@ -22,10 +23,16 @@ fn try_run() -> anyhow::Result<ExitCode> {
     let transpiler = Transpiler::new(paths);
 
     match cli.command {
+        Command::Add(command) => transpiler.execute(BuildSubcommand::Add(AddOptions {
+            packages: command.packages,
+        })),
         Command::Build(command) => transpiler.execute(BuildSubcommand::Build(BuildOptions {
             rustc: rustc_options(command)?,
         })),
         Command::Clean => transpiler.execute(BuildSubcommand::Clean(CleanOptions)),
+        Command::Remove(command) => transpiler.execute(BuildSubcommand::Remove(RemoveOptions {
+            packages: command.packages,
+        })),
         Command::Run(command) => transpiler.execute(BuildSubcommand::Run(RunOptions {
             rustc: rustc_options(command.rustc)?,
             app_args: command.app_args,

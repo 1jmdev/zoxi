@@ -4,17 +4,17 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::project::stable_hash_str;
-
 pub struct ProjectPaths {
     root: PathBuf,
 }
 
 impl ProjectPaths {
     pub fn new(root: Option<PathBuf>) -> Result<Self> {
+        let cwd = current_dir()?;
         let root = match root {
-            Some(path) => path,
-            None => current_dir()?,
+            Some(path) if path.is_absolute() => path,
+            Some(path) => cwd.join(path),
+            None => cwd,
         };
 
         Ok(Self { root })
@@ -36,6 +36,28 @@ impl ProjectPaths {
         self.generated_dir().join("src")
     }
 
+    pub fn project_cache_dir(&self) -> PathBuf {
+        self.generated_dir().join(".cache")
+    }
+
+    pub fn transpile_cache_state_path(&self) -> PathBuf {
+        self.project_cache_dir().join("transpile-state")
+    }
+
+    pub fn build_cache_state_path(&self) -> PathBuf {
+        self.project_cache_dir().join("build-state")
+    }
+
+    pub fn profile_artifact_dir(&self, release: bool) -> PathBuf {
+        self.project_cache_dir().join("artifacts").join(profile_name(release))
+    }
+
+    pub fn profile_incremental_dir(&self, release: bool) -> PathBuf {
+        self.project_cache_dir()
+            .join("incremental")
+            .join(profile_name(release))
+    }
+
     pub fn global_root_dir(&self) -> Result<PathBuf> {
         let home = var_os("HOME").ok_or_else(|| anyhow::anyhow!("HOME is not set"))?;
         Ok(PathBuf::from(home).join(".zoxi"))
@@ -45,34 +67,16 @@ impl ProjectPaths {
         Ok(self.global_root_dir()?.join("cache"))
     }
 
-    pub fn project_cache_dir(&self) -> Result<PathBuf> {
-        Ok(self
-            .global_cache_dir()?
-            .join("projects")
-            .join(self.project_cache_key()))
+    pub fn version_cache_dir(&self) -> Result<PathBuf> {
+        Ok(self.global_cache_dir()?.join("crates"))
     }
 
-    pub fn transpile_cache_state_path(&self) -> Result<PathBuf> {
-        Ok(self.project_cache_dir()?.join("transpile-state"))
+    pub fn source_cache_dir(&self) -> Result<PathBuf> {
+        Ok(self.global_cache_dir()?.join("sources"))
     }
 
-    pub fn profile_artifact_dir(&self, release: bool) -> Result<PathBuf> {
-        Ok(self
-            .project_cache_dir()?
-            .join("artifacts")
-            .join(profile_name(release)))
-    }
-
-    pub fn profile_incremental_dir(&self, release: bool) -> Result<PathBuf> {
-        Ok(self
-            .project_cache_dir()?
-            .join("incremental")
-            .join(profile_name(release)))
-    }
-
-    fn project_cache_key(&self) -> String {
-        let root = self.root.to_string_lossy();
-        format!("{:016x}", stable_hash_str(&root))
+    pub fn registry_cache_dir(&self) -> Result<PathBuf> {
+        Ok(self.global_cache_dir()?.join("registry"))
     }
 }
 

@@ -1,7 +1,12 @@
-pub mod env;
-pub mod options;
+pub mod compiler;
+pub mod dependencies;
+pub mod output;
 pub mod runner;
+pub mod types;
 
-pub use env::EnvVar;
-pub use options::{BuildOptions, BuildSubcommand, CleanOptions, RunOptions, RustcOptions, TestOptions};
+pub use output::{print_command_output, print_error, status};
 pub use runner::RustcRunner;
+pub use types::{
+    AddOptions, BuildOptions, BuildSubcommand, CleanOptions, EnvVar, RemoveOptions, RunOptions,
+    RustcOptions, TestOptions,
+};

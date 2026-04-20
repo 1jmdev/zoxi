@@ -27,9 +27,14 @@ Generated Rust files:
 Build cache and compiled artifacts:
 
 ```text
-~/.zoxi/cache/projects/<project-hash>/artifacts/
-~/.zoxi/cache/projects/<project-hash>/incremental/
-~/.zoxi/cache/projects/<project-hash>/transpile-state
+.zoxi/.cache/transpile-state
+.zoxi/.cache/build-state
+.zoxi/.cache/artifacts/<debug|release>/
+.zoxi/.cache/incremental/<debug|release>/
+~/.zoxi/cache/crates/<crate>/latest.json  # crates.io version cache
+~/.zoxi/cache/crates/<crate>/versions.json
+~/.zoxi/cache/sources/<crate>/<version>/  # downloaded crate sources
+~/.zoxi/cache/registry/<crate>/<version>/ # compiled shared crate cache
 ```
 
 ## Function Return Syntax

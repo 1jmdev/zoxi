@@ -14,10 +14,18 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
+    Add(DependencyCommand),
     Build(RustcCommandArgs),
     Clean,
+    Remove(DependencyCommand),
     Run(RunCommand),
     Test(RustcCommandArgs),
+}
+
+#[derive(Debug, Args, Clone, Default)]
+pub struct DependencyCommand {
+    #[arg(required = true)]
+    pub packages: Vec<String>,
 }
 
 #[derive(Debug, Args, Clone, Default)]
